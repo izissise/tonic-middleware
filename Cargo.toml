@@ -1,5 +1,5 @@
 [package]
-name = "tonic-middleware_derive"
+name = "tonic-middleware"
 version = "0.1.0"
 authors = ["Hugues Morisset <morisset.hugues@gmail.com>"]
 edition = "2018"
