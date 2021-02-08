@@ -1,0 +1,13 @@
+[package]
+name = "tonic-middleware_derive"
+version = "0.1.0"
+authors = ["Hugues Morisset <morisset.hugues@gmail.com>"]
+edition = "2018"
+license = "MIT"
+
+[dependencies]
+tonic = { version = ">=0.4", features = ["codegen"] }
+tonic-middleware-macros = { path = "tonic-middleware_macros" }
+
+[workspace]
+members = ["tonic-middleware_macros"]
