@@ -569,6 +569,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "tonic-middleware"
+version = "0.1.0"
+dependencies = [
+ "tonic",
+ "tonic-middleware-macros",
+]
+
+[[package]]
 name = "tonic-middleware-macros"
 version = "0.1.0"
 dependencies = [
@@ -576,14 +584,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "tonic-middleware_derive"
-version = "0.1.0"
-dependencies = [
- "tonic",
- "tonic-middleware-macros",
 ]
 
 [[package]]

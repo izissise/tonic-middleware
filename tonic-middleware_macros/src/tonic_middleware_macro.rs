@@ -271,8 +271,13 @@ impl ToTokens for TMGImpl {
                 *
             }
 
-            // Convert to service middleware
             impl #service_name_type {
+                /// Set health reporter for service
+                pub async fn serve_health_reports(&self, hr: &mut HealthReporter) {
+                    hr.set_serving::<#tonic_server<#middleware_service_wrapper_name>>().await
+                }
+
+                /// Convert to service middleware
                 pub fn to_service_middleware(self, #(#middlewares_def_types2),*) -> #tonic_server<#middleware_service_wrapper_name> {
                     #tonic_server::new(#middleware_service_wrapper_name {
                         service_impl: self,
