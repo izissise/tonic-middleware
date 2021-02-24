@@ -1,5 +1,5 @@
-use thiserror::Error;
 use std::fmt;
+use thiserror::Error;
 use tonic::Status;
 
 /// Wrap tonic status so it's an error type

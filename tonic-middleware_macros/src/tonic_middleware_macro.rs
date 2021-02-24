@@ -73,33 +73,30 @@ impl Rpc {
         // Middlewares
         let mut middlewares = Vec::new();
         for attr in attrs {
-            match attr.parse_meta() {
-                Ok(meta) => {
-                    let p = meta.path();
+            if let Ok(meta) = attr.parse_meta() {
+                let p = meta.path();
 
-                    // We're only interested in middleware attributes
-                    if quote! { #p }.to_string() == "middleware" {
-                        match meta {
-                            Meta::List(mts) => {
-                                for mt in mts.nested.iter() {
-                                    match mt {
-                                        NestedMeta::Meta(m) => {
-                                            middlewares.push(m.path().clone());
-                                        }
-                                        t => {
-                                            abort! {t, "Needs to impl middleware trait"; note = ""; help = ""; }
-                                        }
-                                    };
-                                }
+                // We're only interested in middleware attributes
+                if quote! { #p }.to_string() == "middleware" {
+                    match meta {
+                        Meta::List(mts) => {
+                            for mt in mts.nested.iter() {
+                                match mt {
+                                    NestedMeta::Meta(m) => {
+                                        middlewares.push(m.path().clone());
+                                    }
+                                    t => {
+                                        abort! {t, "Needs to impl middleware trait"; note = ""; help = ""; }
+                                    }
+                                };
                             }
-                            t => {
-                                abort! { t, "Need to be a middleware type list (A, B, ...)"; note = ""; help = ""; }
-                            }
-                        };
-                    }
+                        }
+                        t => {
+                            abort! { t, "Need to be a middleware type list (A, B, ...)"; note = ""; help = ""; }
+                        }
+                    };
                 }
-                Err(_) => {}
-            };
+            }
         }
 
         Self {
@@ -126,11 +123,14 @@ impl ToTokens for Rpc {
             .middlewares
             .iter()
             .map(|md| {
-                self.all_middlewares.as_ref().unwrap().iter().position(|a| a == md).unwrap_or_else(
-                    || {
+                self.all_middlewares
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .position(|a| a == md)
+                    .unwrap_or_else(|| {
                         abort! { md, "Impossible macro error"; note = ""; help = ""; }
-                    },
-                )
+                    })
             })
             .collect();
 
@@ -188,7 +188,7 @@ impl TMGImpl {
         let mut rpcs: Vec<Rpc> = input
             .items
             .into_iter()
-            .filter_map(|i| {
+            .map(|i| {
                 let m = match i {
                     ImplItem::Method(m) => m,
                     ImplItem::Macro(m) => {
@@ -198,16 +198,18 @@ impl TMGImpl {
                         abort! {t, "Nothing but rpc method in this block"; note = ""; help = ""; }
                     }
                 };
-                Some(Rpc::from_input(m))
+                Rpc::from_input(m)
             })
             .collect();
 
         // Create a Vec of all the middlewares types used on all RPCs
         let mut middlewares: Vec<Path> =
-            rpcs.iter().map(|r| r.middlewares.clone()).fold(Vec::new(), |mut acc, v| {
-                acc.extend(v);
-                acc
-            });
+            rpcs.iter()
+                .map(|r| r.middlewares.clone())
+                .fold(Vec::new(), |mut acc, v| {
+                    acc.extend(v);
+                    acc
+                });
         // Sort it, so struct layout is stable
         middlewares.sort_by(|a, b| {
             let a = quote! { #a }.to_string();
@@ -220,7 +222,11 @@ impl TMGImpl {
             r.all_middlewares = Some(middlewares.clone());
         }
 
-        let service = Service { service_name_type, rpcs, middlewares };
+        let service = Service {
+            service_name_type,
+            rpcs,
+            middlewares,
+        };
 
         Self { args, service }
     }
@@ -228,8 +234,15 @@ impl TMGImpl {
 
 impl ToTokens for TMGImpl {
     fn to_tokens(&self, tokens: &mut ::proc_macro2::TokenStream) {
-        let Self { ref args, ref service } = *self;
-        let Service { ref service_name_type, ref rpcs, ref middlewares } = *service;
+        let Self {
+            ref args,
+            ref service,
+        } = *self;
+        let Service {
+            ref service_name_type,
+            ref rpcs,
+            ref middlewares,
+        } = *service;
         let tonic_service_trait = &args.tonic_service_trait;
         let tonic_server = &args.tonic_server;
         let service_name_type_str = quote! { #service_name_type }.to_string();
@@ -333,7 +346,10 @@ impl TMGArgs {
             }
         };
 
-        Self { tonic_service_trait, tonic_server }
+        Self {
+            tonic_service_trait,
+            tonic_server,
+        }
     }
 }
 
@@ -343,6 +359,6 @@ pub(crate) fn tonic_middleware(args: TokenStream, input: TokenStream) -> TokenSt
     let args = TMGArgs::from_args(args);
     let tmg = TMGImpl::from_args_and_input(args, input);
     let res = quote! { #tmg };
-//     eprintln!("{}", res.to_string());
+    //     eprintln!("{}", res.to_string());
     TokenStream::from(res)
 }
