@@ -2,19 +2,23 @@
 
 #[tonic::async_trait]
 pub trait TonicMiddleware {
-    type ReqEnv;
+    /// Middleware's added context to request
+    type ReqContext;
+    /// Error type that `before` can return
     type Error;
 
-    /// Called before the request is processed by the servicer
-    async fn before_request<T: Send + Sync>(
+    /// Called before the request is processed by the service
+    /// receive requests, and can exit early on errors
+    async fn before<T: Send + Sync>(
         &self,
         request: &tonic::Request<T>,
-    ) -> Result<Self::ReqEnv, Self::Error>;
+    ) -> Result<Self::ReqContext, Self::Error>;
 
-    /// Called after the request was processed by the servicer
-    async fn after_request<T: Send + Sync>(
+    /// Called after the request was processed by the service
+    /// receive context and responses
+    async fn after<T: Send + Sync>(
         &self,
-        env: Self::ReqEnv,
+        context: Self::ReqContext,
         response: &Result<tonic::Response<T>, tonic::Status>,
     );
 }

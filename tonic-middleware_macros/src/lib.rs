@@ -1,3 +1,4 @@
+//! Generates tonic services with middlewares wrapper
 
 #![recursion_limit = "256"]
 #![warn(missing_docs, unreachable_pub)]

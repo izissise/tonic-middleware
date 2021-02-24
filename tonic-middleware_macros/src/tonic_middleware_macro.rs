@@ -121,6 +121,7 @@ impl ToTokens for Rpc {
         let response_type = &self.response_type;
         let _error_type = &self.error_type;
 
+        // Find indexes of this RPC middleware in order
         let md_mappings: Vec<usize> = self
             .middlewares
             .iter()
@@ -135,22 +136,23 @@ impl ToTokens for Rpc {
 
         let md_calls: Vec<(::proc_macro2::TokenStream, ::proc_macro2::TokenStream, ::proc_macro2::TokenStream)> = md_mappings.iter().map(|i| {
             let i = format_ident!("md_{}", i);
-            (quote! { let mut #i = self.#i.before_request(&request).await.map_err(|e| tonic::Status::from(e))?; },
+            (quote! { let mut #i = self.#i.before(&request).await.map_err(|e| tonic::Status::from(e))?; },
              quote! { &mut #i },
-             quote! { self.#i.after_request(#i, &ret).await; })
+             quote! { self.#i.after(#i, &ret).await; })
         }).collect();
         let md_calls_before = md_calls.iter().map(|i| &i.0);
-        let md_calls_env = md_calls.iter().map(|i| &i.1);
+        let md_calls_ctx = md_calls.iter().map(|i| &i.1);
         let md_calls_after = md_calls.iter().map(|i| &i.2);
 
         let res = quote! {
+            #[doc(hidden)]
             async fn #rpc_name(&self, request: #request_type) -> ::core::result::Result<#response_type, ::tonic::Status> {
                 //Per middleware
                 #(#md_calls_before)
                 *
-                let envs = (#(#md_calls_env),*);
+                let ctxs = (#(#md_calls_ctx),*);
                 // Call impl
-                let ret = self.service_impl.#rpc_name(envs, request).await.map_err(|e| e.into());
+                let ret = self.service_impl.#rpc_name(ctxs, request).await.map_err(|e| e.into());
 
                 //Per middleware
                 #(#md_calls_after)
@@ -200,16 +202,19 @@ impl TMGImpl {
             })
             .collect();
 
+        // Create a Vec of all the middlewares types used on all RPCs
         let mut middlewares: Vec<Path> =
             rpcs.iter().map(|r| r.middlewares.clone()).fold(Vec::new(), |mut acc, v| {
                 acc.extend(v);
                 acc
             });
+        // Sort it, so struct layout is stable
         middlewares.sort_by(|a, b| {
             let a = quote! { #a }.to_string();
             let b = quote! { #b }.to_string();
             a.cmp(&b)
         });
+        // Remove duplicates
         middlewares.dedup();
         for mut r in rpcs.iter_mut() {
             r.all_middlewares = Some(middlewares.clone());
@@ -273,7 +278,7 @@ impl ToTokens for TMGImpl {
 
             impl #service_name_type {
                 /// Set health reporter for service
-                pub async fn serve_health_reports(&self, hr: &mut HealthReporter) {
+                pub async fn serve_health_reports(&self, hr: &mut ::tonic_health::server::HealthReporter) {
                     hr.set_serving::<#tonic_server<#middleware_service_wrapper_name>>().await
                 }
 
